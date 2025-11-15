@@ -16,13 +16,14 @@ except Exception as e:
 
 try:
     import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 except Exception as e:
     st.error("The 'plotly' library is required. Install with: pip install plotly")
     raise
 
-import matplotlib.pyplot as plt
+# matplotlib not needed for Plotly plots
 
-st.set_page_config(page_title="Nyquist & Bode Plot Tool", layout="wide")
+st.set_page_config(page_title="Frequency Domain Plots", layout="wide")
 
 st.title("Nyquist & Bode Plot Tool")
 st.caption("Combined Nyquist and Bode plots for frequency domain analysis.")
@@ -310,7 +311,7 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True, delay_info=None):
     return fig
 
 def plot_bode(sys, omega_range, delay_info=None):
-    """Create Bode plots (magnitude and phase)"""
+    """Create interactive Bode plots using Plotly"""
     mag, phase = bode_np(sys, omega_range)
     
     if delay_info is not None and delay_info[0] == "exact":
@@ -319,25 +320,78 @@ def plot_bode(sys, omega_range, delay_info=None):
     
     mag_db = 20 * np.log10(mag)
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=("Bode Plot - Magnitude", "Bode Plot - Phase"),
+        vertical_spacing=0.12,
+        specs=[[{"secondary_y": False}],
+               [{"secondary_y": False}]]
+    )
     
     # Magnitude plot
-    ax1.semilogx(omega_range, mag_db, 'b-', linewidth=2)
-    ax1.axhline(0, color="black", lw=0.8, ls="-", alpha=0.7)
-    ax1.set_ylabel("Magnitude (dB)", fontsize=12)
-    ax1.set_xlabel("ω (rad/s)", fontsize=12)
-    ax1.grid(True, which="both", ls=":")
-    ax1.set_title("Bode Plot - Magnitude", fontsize=14, fontweight='bold')
+    fig.add_trace(
+        go.Scatter(
+            x=omega_range,
+            y=mag_db,
+            mode='lines',
+            name='Magnitude',
+            line=dict(color='blue', width=2),
+            hovertemplate='ω: %{x:.4f} rad/s<br>Magnitude: %{y:.4f} dB<extra></extra>'
+        ),
+        row=1, col=1
+    )
+    
+    # 0 dB reference line
+    fig.add_hline(
+        y=0, line_dash="solid", line_color="black", 
+        line_width=0.8, opacity=0.7, row=1, col=1
+    )
     
     # Phase plot
-    ax2.semilogx(omega_range, phase, 'b-', linewidth=2)
-    ax2.axhline(-180, color="black", lw=0.8, ls="-", alpha=0.7)
-    ax2.set_ylabel("Phase (deg)", fontsize=12)
-    ax2.set_xlabel("ω (rad/s)", fontsize=12)
-    ax2.grid(True, which="both", ls=":")
-    ax2.set_title("Bode Plot - Phase", fontsize=14, fontweight='bold')
+    fig.add_trace(
+        go.Scatter(
+            x=omega_range,
+            y=phase,
+            mode='lines',
+            name='Phase',
+            line=dict(color='blue', width=2),
+            hovertemplate='ω: %{x:.4f} rad/s<br>Phase: %{y:.4f}°<extra></extra>'
+        ),
+        row=2, col=1
+    )
     
-    plt.tight_layout()
+    # -180° reference line
+    fig.add_hline(
+        y=-180, line_dash="solid", line_color="black", 
+        line_width=0.8, opacity=0.7, row=2, col=1
+    )
+    
+    # Update x-axis for both subplots (log scale)
+    fig.update_xaxes(type="log", title_text="ω (rad/s)", row=1, col=1)
+    fig.update_xaxes(type="log", title_text="ω (rad/s)", row=2, col=1)
+    
+    # Update y-axis labels
+    fig.update_yaxes(title_text="Magnitude (dB)", row=1, col=1)
+    fig.update_yaxes(title_text="Phase (deg)", row=2, col=1)
+    
+    # Update layout
+    fig.update_layout(
+        height=700,
+        width=600,
+        showlegend=False,
+        plot_bgcolor='white',
+        legend=dict(
+            bgcolor='white',
+            bordercolor='gray',
+            borderwidth=1,
+            font=dict(color='black')
+        ),
+        xaxis=dict(showgrid=True, gridcolor='lightgray'),
+        xaxis2=dict(showgrid=True, gridcolor='lightgray'),
+        yaxis=dict(showgrid=True, gridcolor='lightgray'),
+        yaxis2=dict(showgrid=True, gridcolor='lightgray')
+    )
+    
     return fig
 
 # ---------- Main App ----------
@@ -555,8 +609,7 @@ with col1:
     st.markdown("### Bode Plot")
     bode_fig = plot_bode(loop_sys, omega_range, delay_info)
     if bode_fig:
-        st.pyplot(bode_fig)
-        plt.close(bode_fig)
+        st.plotly_chart(bode_fig, width='stretch')
 
 with col2:
     st.markdown("### Nyquist Plot")
