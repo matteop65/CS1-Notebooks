@@ -320,6 +320,27 @@ def plot_bode(sys, omega_range, delay_info=None):
     
     mag_db = 20 * np.log10(mag)
     
+    # Generate logarithmic grid lines
+    omega_min = omega_range[0]
+    omega_max = omega_range[-1]
+    
+    # Major divisions (powers of 10)
+    major_freqs = []
+    exp_min = int(np.floor(np.log10(omega_min)))
+    exp_max = int(np.ceil(np.log10(omega_max)))
+    for exp in range(exp_min, exp_max + 1):
+        freq = 10**exp
+        if omega_min <= freq <= omega_max:
+            major_freqs.append(freq)
+    
+    # Minor divisions (2, 3, 4, 5, 6, 7, 8, 9 times powers of 10)
+    minor_freqs = []
+    for exp in range(exp_min, exp_max + 1):
+        for mult in [2, 3, 4, 5, 6, 7, 8, 9]:
+            freq = mult * 10**exp
+            if omega_min <= freq <= omega_max:
+                minor_freqs.append(freq)
+    
     # Compute margins
     try:
         gm, pm, wgc, wpc = ctl.margin(sys)
@@ -358,6 +379,20 @@ def plot_bode(sys, omega_range, delay_info=None):
         fig.add_hline(
             y=db_line, line_dash="dash", line_color="gray", 
             line_width=0.5, opacity=0.4, row=1, col=1
+        )
+    
+    # Logarithmic grid lines - major divisions (powers of 10)
+    for freq in major_freqs:
+        fig.add_vline(
+            x=freq, line_dash="solid", line_color="lightgray", 
+            line_width=0.8, opacity=0.6, row=1, col=1
+        )
+    
+    # Logarithmic grid lines - minor divisions
+    for freq in minor_freqs:
+        fig.add_vline(
+            x=freq, line_dash="dot", line_color="lightgray", 
+            line_width=0.3, opacity=0.4, row=1, col=1
         )
     
     # Gain margin indicator
@@ -413,6 +448,20 @@ def plot_bode(sys, omega_range, delay_info=None):
                 y=phase_line, line_dash="dash", line_color="gray", 
                 line_width=0.5, opacity=0.4, row=2, col=1
             )
+    
+    # Logarithmic grid lines - major divisions (powers of 10)
+    for freq in major_freqs:
+        fig.add_vline(
+            x=freq, line_dash="solid", line_color="lightgray", 
+            line_width=0.8, opacity=0.6, row=2, col=1
+        )
+    
+    # Logarithmic grid lines - minor divisions
+    for freq in minor_freqs:
+        fig.add_vline(
+            x=freq, line_dash="dot", line_color="lightgray", 
+            line_width=0.3, opacity=0.4, row=2, col=1
+        )
     
     # Phase margin indicator
     if np.isfinite(pm) and np.isfinite(wpc) and wpc > 0:
