@@ -234,7 +234,7 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     
     # Place arrow at the center of positive frequency curve (ω: 0 → infinity)
     # The center is at the middle index of the frequency range
-    mid_idx = len(real) // 4
+    mid_idx = len(real) // 2
     if mid_idx < len(real) - 1:
         dx = real[mid_idx+1] - real[mid_idx]
         dy = imag[mid_idx+1] - imag[mid_idx]
