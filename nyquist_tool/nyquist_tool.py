@@ -323,7 +323,8 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True, delay_info=None):
             x=0.01,
             bgcolor='white',
             bordercolor='gray',
-            borderwidth=1
+            borderwidth=1,
+            font=dict(color='black')
         ),
         xaxis=dict(
             showgrid=True,
