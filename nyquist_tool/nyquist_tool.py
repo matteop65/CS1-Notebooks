@@ -27,6 +27,33 @@ st.set_page_config(page_title="Nyquist Plot Tool", layout="wide")
 st.title("Nyquist Plot Tool")
 st.caption("Nyquist plots, stability analysis, time delays, and compensators.")
 
+# Instructions box
+with st.expander("📖 Instructions", expanded=False):
+    st.markdown("""
+    **How to use this tool:**
+    
+    1. **Enter Plant Transfer Function**: In the sidebar, select an input format and enter your plant transfer function P(s).
+       - **Native Transfer Function**: Enter directly using 's' (e.g., `1/(s^2+2*s+2)`)
+       - **Numerator / Denominator**: Enter coefficients as comma-separated values
+       - **Zeros / Poles / Gain**: Specify zeros, poles, and gain
+    
+    2. **Add Compensator (Optional)**: Check "Add compensator C(s)" to include a controller.
+       - Choose from PID, Lead, Lag, Lead-Lag, or Custom (native TF format)
+    
+    3. **Add Time Delay (Optional)**: Check "Add time delay e^(-τs)" to include time delay.
+       - Choose between Padé approximation or exact delay (frequency-domain only)
+    
+    4. **Adjust Settings**: Configure the number of points for the Nyquist plot and toggle the unit circle display.
+    
+    5. **View Results**: The resulting transfer function L(s) = C(s)·P(s) is displayed, and the interactive Nyquist plot shows the frequency response in the complex plane.
+    
+    **Tips:**
+    - Use the interactive plot to zoom and pan for detailed analysis
+    - The critical point (-1, 0) is marked in red
+    - The unit circle helps identify unity gain crossover
+    - Hover over the plot to see exact coordinates
+    """)
+
 # ---------- Helpers ----------
 def parse_native_tf(tf_string: str):
     """Parse native transfer function string like '(1 / (s^2+2*s+2))'"""
