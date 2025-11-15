@@ -223,47 +223,6 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     # Plot Nyquist curve for negative frequencies (mirror)
     ax.plot(real, -imag, 'b--', linewidth=1.5, alpha=0.6, label='L(jω) for ω < 0')
     
-    # Add direction arrows in the middle of each curve
-    # Calculate adaptive arrow size based on plot range
-    x_range = np.max(real) - np.min(real) if len(real) > 0 else 1
-    y_range = np.max(imag) - np.min(imag) if len(imag) > 0 else 1
-    plot_scale = max(x_range, y_range)
-    arrow_scale = plot_scale * 0.03  # Arrow length as fraction of plot size
-    head_width = plot_scale * 0.015
-    head_length = plot_scale * 0.015
-    
-    # Place arrows halfway between start (green circle) and end (red square)
-    # For positive frequency curve (ω: 0 → infinity): from index 0 to -1
-    # For negative frequency curve (ω: -infinity → 0): from index -1 to 0 (backwards)
-    mid_idx = len(real) // 2
-    
-    # Arrow for positive frequency curve (ω: 0 → infinity)
-    if mid_idx < len(real) - 1:
-        dx = real[mid_idx+1] - real[mid_idx]
-        dy = imag[mid_idx+1] - imag[mid_idx]
-        arrow_length = np.sqrt(dx**2 + dy**2)
-        if arrow_length > 1e-6:  # Avoid division by zero
-            dx_norm = dx / arrow_length * arrow_scale
-            dy_norm = dy / arrow_length * arrow_scale
-            ax.arrow(real[mid_idx], imag[mid_idx], dx_norm, dy_norm, 
-                    head_width=head_width, head_length=head_length, 
-                    fc='blue', ec='blue', alpha=0.7, zorder=5)
-    
-    # Arrow for negative frequency curve (ω: -infinity → 0)
-    # Traversed backwards, so use the same midpoint but reverse direction
-    if mid_idx > 0:
-        # For negative frequencies, we go from high to low frequency (backwards through array)
-        # So direction is from mid_idx to mid_idx-1
-        dx = real[mid_idx-1] - real[mid_idx]  # Reversed direction
-        dy = -(imag[mid_idx-1] - imag[mid_idx])  # Negative for mirror, reversed direction
-        arrow_length = np.sqrt(dx**2 + dy**2)
-        if arrow_length > 1e-6:
-            dx_norm = dx / arrow_length * arrow_scale
-            dy_norm = dy / arrow_length * arrow_scale
-            ax.arrow(real[mid_idx], -imag[mid_idx], dx_norm, dy_norm, 
-                    head_width=head_width, head_length=head_length, 
-                    fc='blue', ec='blue', alpha=0.5, linestyle='--', zorder=5)
-    
     # Mark start and end points
     ax.plot(real[0], imag[0], 'go', markersize=10, label=f'ω = {omega_range[0]:.3f} rad/s')
     ax.plot(real[-1], imag[-1], 'rs', markersize=10, label=f'ω = {omega_range[-1]:.3f} rad/s')
