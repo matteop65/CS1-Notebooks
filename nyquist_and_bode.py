@@ -559,7 +559,7 @@ def plot_bode(sys, omega_range, delay_info=None):
             ),
             dict(
                 x=0.5,
-                y=0.50,
+                y=0.40,
                 xref="paper",
                 yref="paper",
                 text="<b>Bode Plot - Phase</b>",
