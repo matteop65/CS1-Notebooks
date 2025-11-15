@@ -223,10 +223,6 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     # Plot Nyquist curve for negative frequencies (mirror)
     ax.plot(real, -imag, 'b--', linewidth=1.5, alpha=0.6, label='L(jω) for ω < 0')
     
-    # Mark start and end points
-    ax.plot(real[0], imag[0], 'go', markersize=10, label=f'ω = {omega_range[0]:.3f} rad/s')
-    ax.plot(real[-1], imag[-1], 'rs', markersize=10, label=f'ω = {omega_range[-1]:.3f} rad/s')
-    
     # Plot critical point (-1, 0)
     ax.plot(-1, 0, 'rx', markersize=15, markeredgewidth=3, label='Critical point (-1, 0)')
     
