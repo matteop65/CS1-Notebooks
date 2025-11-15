@@ -121,7 +121,7 @@ def apply_compensator(sys):
     # what compensator
     ctype = st.selectbox(
         "Compensator type",
-        ["PID", "Lead", "Lag", "Lead-Lag", "Dynamic (num/den)", "Custom (native TF)"],
+        ["PID", "Lead", "Lag", "Lead-Lag", "Custom"],
         index=0,
     )
 
@@ -177,18 +177,7 @@ def apply_compensator(sys):
             C = k * Lead * Lag
         return C*sys, C, None
     
-    if ctype == "Dynamic (num/den)":
-        num_c = st.text_input("Compensator numerator", value="1, 2")
-        den_c = st.text_input("Compensator denominator", value="1, 1")
-        try:
-            num_cc = [float(x) for x in num_c.replace(";",",").split(",") if x.strip()!=""]
-            den_cc = [float(x) for x in den_c.replace(";",",").split(",") if x.strip()!=""]
-            C = ctl.tf(num_cc, den_cc)
-            return C*sys, C, None
-        except Exception as e:
-            return sys, ctl.tf([1],[1]), f"Failed to parse compensator: {e}"
-    
-    if ctype == "Custom (native TF)":
+    if ctype == "Custom":
         tf_string = st.text_input(
             "Compensator transfer function (e.g., (s+1)/(s+2) or 1/(s+1))", 
             value="1",
