@@ -439,9 +439,36 @@ def plot_bode(sys, omega_range, delay_info=None):
         except Exception:
             pass
     
-    # Update x-axis for both subplots (log scale)
-    fig.update_xaxes(type="log", title_text="ω (rad/s)", row=1, col=1)
-    fig.update_xaxes(type="log", title_text="ω (rad/s)", row=2, col=1)
+    # Update x-axis for both subplots (log scale with proper grid)
+    # Configure major and minor grid lines for logarithmic scale
+    fig.update_xaxes(
+        type="log",
+        title_text="ω (rad/s)",
+        showgrid=True,
+        gridcolor='lightgray',
+        gridwidth=0.8,
+        minor=dict(
+            showgrid=True,
+            gridcolor='lightgray',
+            gridwidth=0.3,
+            griddash='dot'
+        ),
+        row=1, col=1
+    )
+    fig.update_xaxes(
+        type="log",
+        title_text="ω (rad/s)",
+        showgrid=True,
+        gridcolor='lightgray',
+        gridwidth=0.8,
+        minor=dict(
+            showgrid=True,
+            gridcolor='lightgray',
+            gridwidth=0.3,
+            griddash='dot'
+        ),
+        row=2, col=1
+    )
     
     # Update y-axis labels
     fig.update_yaxes(title_text="Magnitude (dB)", row=1, col=1)
@@ -463,8 +490,6 @@ def plot_bode(sys, omega_range, delay_info=None):
             xanchor="left",
             x=0.01
         ),
-        xaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
-        xaxis2=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
         yaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
         yaxis2=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5)
     )
