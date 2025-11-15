@@ -320,7 +320,10 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True, delay_info=None):
             yanchor="top",
             y=0.99,
             xanchor="left",
-            x=0.01
+            x=0.01,
+            bgcolor='white',
+            bordercolor='gray',
+            borderwidth=1
         ),
         xaxis=dict(
             showgrid=True,
