@@ -121,7 +121,7 @@ def apply_compensator(sys):
     # what compensator
     ctype = st.selectbox(
         "Compensator type",
-        ["PID", "Lead", "Lag", "Lead-Lag", "Dynamic (num/den)"],
+        ["PID", "Lead", "Lag", "Lead-Lag", "Dynamic (num/den)", "Custom (native TF)"],
         index=0,
     )
 
@@ -187,6 +187,19 @@ def apply_compensator(sys):
             return C*sys, C, None
         except Exception as e:
             return sys, ctl.tf([1],[1]), f"Failed to parse compensator: {e}"
+    
+    if ctype == "Custom (native TF)":
+        tf_string = st.text_input(
+            "Compensator transfer function (e.g., (s+1)/(s+2) or 1/(s+1))", 
+            value="1",
+            help="Enter compensator transfer function using 's' as the variable. Examples: (s+1)/(s+2), 1/(s+1), s/(s^2+2*s+1)"
+        )
+        C, err = parse_native_tf(tf_string)
+        if err:
+            return sys, ctl.tf([1],[1]), f"Failed to parse compensator: {err}"
+        if C is None:
+            return sys, ctl.tf([1],[1]), "Could not create compensator transfer function"
+        return C*sys, C, None
     
     return sys, ctl.tf([1],[1]), None
 
