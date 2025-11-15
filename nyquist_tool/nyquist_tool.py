@@ -223,9 +223,12 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     # Plot Nyquist curve for negative frequencies (mirror)
     ax.plot(real, -imag, 'b--', linewidth=1.5, alpha=0.6, label='L(jω) for ω < 0')
     
-    # Add direction arrows for positive frequencies
-    n_arrows = 20  # Number of arrows to display
-    arrow_indices = np.linspace(0, len(real)-2, n_arrows, dtype=int)
+    # Add direction arrows for positive frequencies (just a couple, avoiding start/end)
+    n_arrows = 2  # Number of arrows to display per curve
+    # Place arrows at positions that avoid the very start and end
+    skip_start = max(1, len(real) // 10)  # Skip first 10% to avoid start point
+    skip_end = max(1, len(real) // 10)    # Skip last 10% to avoid end point
+    arrow_indices = np.linspace(skip_start, len(real)-2-skip_end, n_arrows, dtype=int)
     
     # Calculate adaptive arrow size based on plot range
     x_range = np.max(real) - np.min(real) if len(real) > 0 else 1
@@ -249,7 +252,7 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
                         head_width=head_width, head_length=head_length, 
                         fc='blue', ec='blue', alpha=0.7, zorder=5)
     
-    # Add direction arrows for negative frequencies
+    # Add direction arrows for negative frequencies (just a couple)
     for i in arrow_indices:
         if i < len(real) - 1:
             dx = real[i+1] - real[i]
