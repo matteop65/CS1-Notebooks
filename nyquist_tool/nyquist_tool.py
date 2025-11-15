@@ -51,21 +51,17 @@ def parse_native_tf(tf_string: str):
         num_degree = num_poly.degree()
         den_degree = den_poly.degree()
         
-        # Get coefficients - all_coeffs() returns [coeff_s^0, coeff_s^1, ..., coeff_s^n]
-        # We need to reverse to get [coeff_s^n, ..., coeff_s^1, coeff_s^0]
-        num_coeffs = num_poly.all_coeffs()
-        den_coeffs = den_poly.all_coeffs()
+        # Extract coefficients explicitly for each power
+        # Build coefficient lists from highest to lowest power (control library format)
+        num_c = []
+        for i in range(num_degree, -1, -1):
+            coeff = num_poly.coeff_monomial(s**i)
+            num_c.append(float(coeff))
         
-        # Verify we have the right number of coefficients
-        if len(num_coeffs) != num_degree + 1:
-            # This shouldn't happen, but handle it
-            num_coeffs = [0] * (num_degree + 1 - len(num_coeffs)) + num_coeffs
-        if len(den_coeffs) != den_degree + 1:
-            den_coeffs = [0] * (den_degree + 1 - len(den_coeffs)) + den_coeffs
-        
-        # Convert to float and reverse to get highest power first (control library format)
-        num_c = [float(c) for c in reversed(num_coeffs)]
-        den_c = [float(c) for c in reversed(den_coeffs)]
+        den_c = []
+        for i in range(den_degree, -1, -1):
+            coeff = den_poly.coeff_monomial(s**i)
+            den_c.append(float(coeff))
         
         # Create transfer function
         sys = ctl.tf(num_c, den_c)
