@@ -349,8 +349,8 @@ def plot_bode(sys, omega_range, delay_info=None):
     
     fig = make_subplots(
         rows=2, cols=1,
-        subplot_titles=("Bode Plot - Magnitude", "Bode Plot - Phase"),
-        vertical_spacing=0.20,
+        subplot_titles=("", ""),  # Empty titles, we'll add custom ones
+        vertical_spacing=0.30,
         row_heights=[0.5, 0.5],
         specs=[[{"secondary_y": False}],
                [{"secondary_y": False}]]
@@ -526,7 +526,7 @@ def plot_bode(sys, omega_range, delay_info=None):
     
     # Update layout
     fig.update_layout(
-        height=700,
+        height=800,
         width=600,
         showlegend=True,
         plot_bgcolor='white',
@@ -541,7 +541,30 @@ def plot_bode(sys, omega_range, delay_info=None):
             x=0.01
         ),
         yaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
-        yaxis2=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5)
+        yaxis2=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
+        # Add custom subtitles with proper spacing
+        annotations=[
+            dict(
+                x=0.5,
+                y=1.08,
+                xref="paper",
+                yref="paper",
+                text="Bode Plot - Magnitude",
+                showarrow=False,
+                font=dict(size=14, color="black", family="Arial"),
+                xanchor="center"
+            ),
+            dict(
+                x=0.5,
+                y=0.55,
+                xref="paper",
+                yref="paper",
+                text="Bode Plot - Phase",
+                showarrow=False,
+                font=dict(size=14, color="black", family="Arial"),
+                xanchor="center"
+            )
+        ]
     )
     
     return fig
