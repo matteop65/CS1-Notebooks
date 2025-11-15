@@ -221,7 +221,7 @@ def compute_nyquist_data(sys, omega_range):
 
 def plot_nyquist(sys, omega_range, show_unity_circle=True):
     """Create Nyquist plot"""
-    fig, ax = plt.subplots(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(16, 15))
     
     # Compute Nyquist data
     real, imag, mag, phase = compute_nyquist_data(sys, omega_range)
