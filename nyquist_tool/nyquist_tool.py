@@ -286,16 +286,12 @@ with st.sidebar:
 st.sidebar.header("Nyquist Plot Settings")
 
 with st.sidebar:
-    omega_min = st.number_input("Min frequency (rad/s)", value=0.001, min_value=1e-6, step=0.001, format="%.6g")
-    omega_max = st.number_input("Max frequency (rad/s)", value=100.0, min_value=0.1, step=1.0, format="%.6g")
     n_points = st.number_input("Number of points", value=1000, min_value=100, max_value=10000, step=100)
     
-    log_scale = st.checkbox("Logarithmic frequency scale", value=True)
-    
-    if log_scale:
-        omega_range = np.logspace(np.log10(omega_min), np.log10(omega_max), n_points)
-    else:
-        omega_range = np.linspace(omega_min, omega_max, n_points)
+    # Use default frequency range with logarithmic scale
+    omega_min = 0.001
+    omega_max = 100.0
+    omega_range = np.logspace(np.log10(omega_min), np.log10(omega_max), n_points)
     
     show_unity = st.checkbox("Show unit circle", value=True)
 
