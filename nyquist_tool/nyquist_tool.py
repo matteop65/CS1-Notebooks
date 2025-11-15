@@ -132,6 +132,7 @@ def apply_compensator(sys):
         if Ki == 0 and Kd == 0:
             # Pure proportional
             C = ctl.tf([Kp], [1])
+            N = None
         elif Ki == 0:
             # PD controller
             N = st.number_input("Derivative filter N", value=10.0, step=1.0, format="%.6g")
@@ -142,6 +143,8 @@ def apply_compensator(sys):
             C = ctl.tf([Kd*N, Kp*N, Ki*N], [1, N, 0])
         
         st.session_state["pid_params"] = {"Kp": Kp, "Ki": Ki, "Kd": Kd}
+        if N is not None:
+            st.session_state["pid_N"] = N
         return C*sys, C, None
     
     if ctype in ["Lead", "Lag", "Lead-Lag"]:
@@ -186,6 +189,7 @@ def apply_time_delay(sys, tau):
     
     # Use Pade approximation for time delay
     order = st.number_input("Pade approximation order", min_value=1, max_value=10, value=3, step=1)
+    st.session_state["pade_order"] = order
     
     try:
         # Create Pade approximation for e^(-tau*s)
@@ -365,23 +369,143 @@ with st.sidebar:
 
 # ---------- Display Results ----------
 
-# Display transfer functions
-col1, col2 = st.columns(2)
+# Load MathJax for LaTeX rendering
+st.markdown(
+    r"<script type='text/javascript' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>",
+    unsafe_allow_html=True
+)
 
-with col1:
-    st.subheader("Plant P(s)")
-    st.code(str(plant_sys), language=None)
+# Helper functions for LaTeX formatting
+def clean_num(x):
+    if abs(x - round(x)) < 1e-10:
+        return str(int(round(x)))
+    else:
+        return f"{x:.4g}"
 
-with col2:
-    if comp_sys.num[0][0][0] != 1 or len(comp_sys.num[0][0]) > 1 or len(comp_sys.den[0][0]) > 1:
-        st.subheader("Controller C(s)")
-        st.code(str(comp_sys), language=None)
+def poly_to_latex(coeffs):
+    terms = []
+    n = len(coeffs)
+    for i, c in enumerate(coeffs):
+        power = n - i - 1
+        if abs(c) < 1e-12:
+            continue
+        c_str = clean_num(c)
+        if power == 0:
+            terms.append(f"{c_str}")
+        elif power == 1:
+            terms.append(f"{c_str} s")
+        else:
+            terms.append(f"{c_str} s^{{{power}}}")
+    return " + ".join(terms) if terms else "0"
 
-st.subheader("Open-Loop Transfer Function L(s) = C(s)·P(s)")
-st.code(str(loop_sys), language=None)
+def tf_to_latex(tf_obj):
+    num, den = ctl.tfdata(tf_obj)
+    num = [float(n) for n in num[0][0]]
+    den = [float(d) for d in den[0][0]]
+    num_str = poly_to_latex(num)
+    den_str = poly_to_latex(den)
+    return r"\frac{" + num_str + "}{" + den_str + "}"
 
-if add_delay:
-    st.info(f"Time delay τ = {tau} s is included using Pade approximation")
+# Display resulting transfer function
+st.subheader("Resulting Transfer Function")
+
+# Check if compensator is active
+comp_active = comp_sys is not None and not (
+    len(ctl.tfdata(comp_sys)[0][0][0]) == 1 and ctl.tfdata(comp_sys)[0][0][0][0] == 1
+)
+
+# No compensator
+if not comp_active:
+    if not add_delay:
+        st.latex(r"L(s) = P(s) = " + tf_to_latex(plant_sys))
+    else:
+        # With Pade delay
+        order = st.session_state.get("pade_order", 3)
+        num_d, den_d = ctl.pade(tau, order)
+        D = ctl.tf(num_d, den_d)
+        num_str = poly_to_latex(num_d)
+        den_str = poly_to_latex(den_d)
+        pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
+        st.latex(
+            rf"""\begin{{aligned}}
+            &{pade_formula}\\[6pt]
+            L(s) &= P(s)\,D_{{\text{{Padé}}}}(s)
+            = \big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[8pt]
+            L(s) &= {tf_to_latex(loop_sys)}
+            \end{{aligned}}"""
+        )
+
+# With compensator
+else:
+    L = comp_sys * plant_sys
+    pid = st.session_state.get("pid_params", None)
+    
+    # Special format for PID
+    if pid is not None:
+        def cn(x):
+            return str(int(round(x))) if abs(x - round(x)) < 1e-10 else f"{x:.4g}"
+        Kp, Ki, Kd = pid["Kp"], pid["Ki"], pid["Kd"]
+        
+        terms = []
+        if abs(Kp) > 1e-12:
+            terms.append(cn(Kp))
+        if abs(Ki) > 1e-12:
+            terms.append(rf"\frac{{{cn(Ki)}}}{{s}}")
+        if abs(Kd) > 1e-12:
+            N = st.session_state.get("pid_N", 10.0)
+            terms.append(rf"\frac{{{cn(Kd)}\,\cdot {cn(N)}\,s}}{{s+{cn(N)}}}")
+        if not terms:
+            terms = ["0"]
+        pid_expr = " + ".join(terms)
+        
+        if not add_delay:
+            st.latex(
+                rf"""\begin{{aligned}}
+                L(s) &= C(s)\,P(s) = \big({pid_expr}\big)\cdot{tf_to_latex(plant_sys)}\\[10pt]
+                L(s) &= {tf_to_latex(L)}
+                \end{{aligned}}"""
+            )
+        else:
+            # With Pade delay
+            order = st.session_state.get("pade_order", 3)
+            num_d, den_d = ctl.pade(tau, order)
+            D = ctl.tf(num_d, den_d)
+            num_str = poly_to_latex(num_d)
+            den_str = poly_to_latex(den_d)
+            pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
+            st.latex(
+                rf"""\begin{{aligned}}
+                &{pade_formula}\\[6pt]
+                L(s) &= C(s)\,P(s)\,D_{{\text{{Padé}}}}(s)
+                = \big({pid_expr}\big)\,\big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[10pt]
+                L(s) &= {tf_to_latex(loop_sys)}
+                \end{{aligned}}"""
+            )
+    else:
+        # Compensator without PID
+        if not add_delay:
+            st.latex(
+                rf"""\begin{{aligned}}
+                L(s) &= C(s)\,P(s) = {tf_to_latex(comp_sys)}\cdot{tf_to_latex(plant_sys)}\\[10pt]
+                L(s) &= {tf_to_latex(L)}
+                \end{{aligned}}"""
+            )
+        else:
+            # With Pade delay
+            order = st.session_state.get("pade_order", 3)
+            num_d, den_d = ctl.pade(tau, order)
+            D = ctl.tf(num_d, den_d)
+            num_str = poly_to_latex(num_d)
+            den_str = poly_to_latex(den_d)
+            pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
+            st.latex(
+                rf"""\begin{{aligned}}
+                &{pade_formula}\\[6pt]
+                L(s) &= C(s)\,P(s)\,D_{{\text{{Padé}}}}(s)
+                = \big({tf_to_latex(comp_sys)}\big)\,\big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[10pt]
+                L(s) &= {tf_to_latex(loop_sys)}
+                \end{{aligned}}"""
+            )
 
 # Compute stability margins
 stability = compute_stability_margins(loop_sys)
