@@ -223,6 +223,45 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     # Plot Nyquist curve for negative frequencies (mirror)
     ax.plot(real, -imag, 'b--', linewidth=1.5, alpha=0.6, label='L(jω) for ω < 0')
     
+    # Add direction arrows for positive frequencies
+    n_arrows = 20  # Number of arrows to display
+    arrow_indices = np.linspace(0, len(real)-2, n_arrows, dtype=int)
+    
+    # Calculate adaptive arrow size based on plot range
+    x_range = np.max(real) - np.min(real) if len(real) > 0 else 1
+    y_range = np.max(imag) - np.min(imag) if len(imag) > 0 else 1
+    plot_scale = max(x_range, y_range)
+    arrow_scale = plot_scale * 0.03  # Arrow length as fraction of plot size
+    head_width = plot_scale * 0.015
+    head_length = plot_scale * 0.015
+    
+    for i in arrow_indices:
+        if i < len(real) - 1:
+            dx = real[i+1] - real[i]
+            dy = imag[i+1] - imag[i]
+            # Normalize direction and scale to fixed arrow length
+            arrow_length = np.sqrt(dx**2 + dy**2)
+            if arrow_length > 1e-6:  # Avoid division by zero
+                # Normalize direction vector and scale to desired arrow length
+                dx_norm = dx / arrow_length * arrow_scale
+                dy_norm = dy / arrow_length * arrow_scale
+                ax.arrow(real[i], imag[i], dx_norm, dy_norm, 
+                        head_width=head_width, head_length=head_length, 
+                        fc='blue', ec='blue', alpha=0.7, zorder=5)
+    
+    # Add direction arrows for negative frequencies
+    for i in arrow_indices:
+        if i < len(real) - 1:
+            dx = real[i+1] - real[i]
+            dy = -(imag[i+1] - imag[i])  # Negative for mirror
+            arrow_length = np.sqrt(dx**2 + dy**2)
+            if arrow_length > 1e-6:
+                dx_norm = dx / arrow_length * arrow_scale
+                dy_norm = dy / arrow_length * arrow_scale
+                ax.arrow(real[i], -imag[i], dx_norm, dy_norm, 
+                        head_width=head_width, head_length=head_length, 
+                        fc='blue', ec='blue', alpha=0.5, linestyle='--', zorder=5)
+    
     # Mark start and end points
     ax.plot(real[0], imag[0], 'go', markersize=10, label=f'ω = {omega_range[0]:.3f} rad/s')
     ax.plot(real[-1], imag[-1], 'rs', markersize=10, label=f'ω = {omega_range[-1]:.3f} rad/s')
