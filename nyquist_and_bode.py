@@ -350,7 +350,8 @@ def plot_bode(sys, omega_range, delay_info=None):
     fig = make_subplots(
         rows=2, cols=1,
         subplot_titles=("Bode Plot - Magnitude", "Bode Plot - Phase"),
-        vertical_spacing=0.12,
+        vertical_spacing=0.20,
+        row_heights=[0.5, 0.5],
         specs=[[{"secondary_y": False}],
                [{"secondary_y": False}]]
     )
