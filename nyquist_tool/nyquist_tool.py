@@ -247,10 +247,11 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
                     fc='blue', ec='blue', alpha=0.7, zorder=5)
     
     # Place arrow at the center of negative frequency curve (ω: -infinity → 0)
-    # This is the mirror of the positive frequency curve, so same index but mirrored
-    if mid_idx < len(real) - 1:
-        dx = real[mid_idx+1] - real[mid_idx]
-        dy = -(imag[mid_idx+1] - imag[mid_idx])  # Negative for mirror
+    # For negative frequencies, traversal is from high to low frequency (backwards)
+    # So we reverse the direction vector
+    if mid_idx > 0 and mid_idx < len(real):
+        dx = real[mid_idx-1] - real[mid_idx]  # Reversed direction
+        dy = -(imag[mid_idx-1] - imag[mid_idx])  # Negative for mirror, reversed direction
         arrow_length = np.sqrt(dx**2 + dy**2)
         if arrow_length > 1e-6:
             dx_norm = dx / arrow_length * arrow_scale
