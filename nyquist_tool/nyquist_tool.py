@@ -223,13 +223,7 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     # Plot Nyquist curve for negative frequencies (mirror)
     ax.plot(real, -imag, 'b--', linewidth=1.5, alpha=0.6, label='L(jω) for ω < 0')
     
-    # Add direction arrows for positive frequencies (just a couple, avoiding start/end)
-    n_arrows = 2  # Number of arrows to display per curve
-    # Place arrows at positions that avoid the very start and end
-    skip_start = max(1, len(real) // 10)  # Skip first 10% to avoid start point
-    skip_end = max(1, len(real) // 10)    # Skip last 10% to avoid end point
-    arrow_indices = np.linspace(skip_start, len(real)-2-skip_end, n_arrows, dtype=int)
-    
+    # Add direction arrows in the middle of each curve
     # Calculate adaptive arrow size based on plot range
     x_range = np.max(real) - np.min(real) if len(real) > 0 else 1
     y_range = np.max(imag) - np.min(imag) if len(imag) > 0 else 1
@@ -238,32 +232,30 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     head_width = plot_scale * 0.015
     head_length = plot_scale * 0.015
     
-    for i in arrow_indices:
-        if i < len(real) - 1:
-            dx = real[i+1] - real[i]
-            dy = imag[i+1] - imag[i]
-            # Normalize direction and scale to fixed arrow length
-            arrow_length = np.sqrt(dx**2 + dy**2)
-            if arrow_length > 1e-6:  # Avoid division by zero
-                # Normalize direction vector and scale to desired arrow length
-                dx_norm = dx / arrow_length * arrow_scale
-                dy_norm = dy / arrow_length * arrow_scale
-                ax.arrow(real[i], imag[i], dx_norm, dy_norm, 
-                        head_width=head_width, head_length=head_length, 
-                        fc='blue', ec='blue', alpha=0.7, zorder=5)
+    # Place arrow in the middle of positive frequency curve
+    mid_idx = len(real) // 2
+    if mid_idx < len(real) - 1:
+        dx = real[mid_idx+1] - real[mid_idx]
+        dy = imag[mid_idx+1] - imag[mid_idx]
+        arrow_length = np.sqrt(dx**2 + dy**2)
+        if arrow_length > 1e-6:  # Avoid division by zero
+            dx_norm = dx / arrow_length * arrow_scale
+            dy_norm = dy / arrow_length * arrow_scale
+            ax.arrow(real[mid_idx], imag[mid_idx], dx_norm, dy_norm, 
+                    head_width=head_width, head_length=head_length, 
+                    fc='blue', ec='blue', alpha=0.7, zorder=5)
     
-    # Add direction arrows for negative frequencies (just a couple)
-    for i in arrow_indices:
-        if i < len(real) - 1:
-            dx = real[i+1] - real[i]
-            dy = -(imag[i+1] - imag[i])  # Negative for mirror
-            arrow_length = np.sqrt(dx**2 + dy**2)
-            if arrow_length > 1e-6:
-                dx_norm = dx / arrow_length * arrow_scale
-                dy_norm = dy / arrow_length * arrow_scale
-                ax.arrow(real[i], -imag[i], dx_norm, dy_norm, 
-                        head_width=head_width, head_length=head_length, 
-                        fc='blue', ec='blue', alpha=0.5, linestyle='--', zorder=5)
+    # Place arrow in the middle of negative frequency curve
+    if mid_idx < len(real) - 1:
+        dx = real[mid_idx+1] - real[mid_idx]
+        dy = -(imag[mid_idx+1] - imag[mid_idx])  # Negative for mirror
+        arrow_length = np.sqrt(dx**2 + dy**2)
+        if arrow_length > 1e-6:
+            dx_norm = dx / arrow_length * arrow_scale
+            dy_norm = dy / arrow_length * arrow_scale
+            ax.arrow(real[mid_idx], -imag[mid_idx], dx_norm, dy_norm, 
+                    head_width=head_width, head_length=head_length, 
+                    fc='blue', ec='blue', alpha=0.5, linestyle='--', zorder=5)
     
     # Mark start and end points
     ax.plot(real[0], imag[0], 'go', markersize=10, label=f'ω = {omega_range[0]:.3f} rad/s')
