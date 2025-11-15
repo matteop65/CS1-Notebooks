@@ -320,6 +320,12 @@ def plot_bode(sys, omega_range, delay_info=None):
     
     mag_db = 20 * np.log10(mag)
     
+    # Compute margins
+    try:
+        gm, pm, wgc, wpc = ctl.margin(sys)
+    except Exception:
+        gm = pm = wgc = wpc = np.nan
+    
     fig = make_subplots(
         rows=2, cols=1,
         subplot_titles=("Bode Plot - Magnitude", "Bode Plot - Phase"),
@@ -341,11 +347,44 @@ def plot_bode(sys, omega_range, delay_info=None):
         row=1, col=1
     )
     
-    # 0 dB reference line
+    # 0 dB reference line (solid, prominent)
     fig.add_hline(
         y=0, line_dash="solid", line_color="black", 
-        line_width=0.8, opacity=0.7, row=1, col=1
+        line_width=1.0, opacity=0.8, row=1, col=1
     )
+    
+    # Common magnitude reference lines (dashed, lighter)
+    for db_line in [-20, -40, 20, 40]:
+        fig.add_hline(
+            y=db_line, line_dash="dash", line_color="gray", 
+            line_width=0.5, opacity=0.4, row=1, col=1
+        )
+    
+    # Gain margin indicator
+    if np.isfinite(gm) and np.isfinite(wgc) and wgc > 0:
+        try:
+            mag_at_wgc = 20 * np.log10(np.abs(ctl.freqresp(sys, [wgc])[0][0]))
+            gm_db = 20 * np.log10(gm)
+            # Vertical line at gain crossover frequency
+            fig.add_vline(
+                x=wgc, line_dash="dot", line_color="blue", 
+                line_width=1.0, opacity=0.6, row=1, col=1
+            )
+            # Marker at gain crossover
+            fig.add_trace(
+                go.Scatter(
+                    x=[wgc],
+                    y=[mag_at_wgc],
+                    mode='markers',
+                    name=f'GM = {gm_db:.2f} dB',
+                    marker=dict(symbol='diamond', size=10, color='blue'),
+                    showlegend=True,
+                    hovertemplate=f'Gain Crossover: ω={wgc:.4f} rad/s<br>GM={gm_db:.2f} dB<extra></extra>'
+                ),
+                row=1, col=1
+            )
+        except Exception:
+            pass
     
     # Phase plot
     fig.add_trace(
@@ -360,11 +399,45 @@ def plot_bode(sys, omega_range, delay_info=None):
         row=2, col=1
     )
     
-    # -180° reference line
-    fig.add_hline(
-        y=-180, line_dash="solid", line_color="black", 
-        line_width=0.8, opacity=0.7, row=2, col=1
-    )
+    # Common phase reference lines
+    for phase_line in [-90, -180, -270]:
+        if phase_line == -180:
+            # -180° line (solid, prominent)
+            fig.add_hline(
+                y=phase_line, line_dash="solid", line_color="black", 
+                line_width=1.0, opacity=0.8, row=2, col=1
+            )
+        else:
+            # -90° and -270° lines (dashed, lighter)
+            fig.add_hline(
+                y=phase_line, line_dash="dash", line_color="gray", 
+                line_width=0.5, opacity=0.4, row=2, col=1
+            )
+    
+    # Phase margin indicator
+    if np.isfinite(pm) and np.isfinite(wpc) and wpc > 0:
+        try:
+            phase_at_wpc = np.interp(wpc, omega_range, phase)
+            # Vertical line at phase crossover frequency
+            fig.add_vline(
+                x=wpc, line_dash="dot", line_color="red", 
+                line_width=1.0, opacity=0.6, row=2, col=1
+            )
+            # Marker at phase crossover
+            fig.add_trace(
+                go.Scatter(
+                    x=[wpc],
+                    y=[phase_at_wpc],
+                    mode='markers',
+                    name=f'PM = {pm:.2f}°',
+                    marker=dict(symbol='diamond', size=10, color='red'),
+                    showlegend=True,
+                    hovertemplate=f'Phase Crossover: ω={wpc:.4f} rad/s<br>PM={pm:.2f}°<extra></extra>'
+                ),
+                row=2, col=1
+            )
+        except Exception:
+            pass
     
     # Update x-axis for both subplots (log scale)
     fig.update_xaxes(type="log", title_text="ω (rad/s)", row=1, col=1)
@@ -378,18 +451,22 @@ def plot_bode(sys, omega_range, delay_info=None):
     fig.update_layout(
         height=700,
         width=600,
-        showlegend=False,
+        showlegend=True,
         plot_bgcolor='white',
         legend=dict(
             bgcolor='white',
             bordercolor='gray',
             borderwidth=1,
-            font=dict(color='black')
+            font=dict(color='black'),
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
         ),
-        xaxis=dict(showgrid=True, gridcolor='lightgray'),
-        xaxis2=dict(showgrid=True, gridcolor='lightgray'),
-        yaxis=dict(showgrid=True, gridcolor='lightgray'),
-        yaxis2=dict(showgrid=True, gridcolor='lightgray')
+        xaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
+        xaxis2=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
+        yaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
+        yaxis2=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5)
     )
     
     return fig
