@@ -232,9 +232,12 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     head_width = plot_scale * 0.015
     head_length = plot_scale * 0.015
     
-    # Place arrow at the center of positive frequency curve (ω: 0 → infinity)
-    # The center is at the middle index of the frequency range
+    # Place arrows halfway between start (green circle) and end (red square)
+    # For positive frequency curve (ω: 0 → infinity): from index 0 to -1
+    # For negative frequency curve (ω: -infinity → 0): from index -1 to 0 (backwards)
     mid_idx = len(real) // 2
+    
+    # Arrow for positive frequency curve (ω: 0 → infinity)
     if mid_idx < len(real) - 1:
         dx = real[mid_idx+1] - real[mid_idx]
         dy = imag[mid_idx+1] - imag[mid_idx]
@@ -246,10 +249,11 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
                     head_width=head_width, head_length=head_length, 
                     fc='blue', ec='blue', alpha=0.7, zorder=5)
     
-    # Place arrow at the center of negative frequency curve (ω: -infinity → 0)
-    # For negative frequencies, traversal is from high to low frequency (backwards)
-    # So we reverse the direction vector
-    if mid_idx > 0 and mid_idx < len(real):
+    # Arrow for negative frequency curve (ω: -infinity → 0)
+    # Traversed backwards, so use the same midpoint but reverse direction
+    if mid_idx > 0:
+        # For negative frequencies, we go from high to low frequency (backwards through array)
+        # So direction is from mid_idx to mid_idx-1
         dx = real[mid_idx-1] - real[mid_idx]  # Reversed direction
         dy = -(imag[mid_idx-1] - imag[mid_idx])  # Negative for mirror, reversed direction
         arrow_length = np.sqrt(dx**2 + dy**2)
