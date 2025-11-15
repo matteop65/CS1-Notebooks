@@ -221,7 +221,7 @@ def compute_nyquist_data(sys, omega_range):
 
 def plot_nyquist(sys, omega_range, show_unity_circle=True):
     """Create Nyquist plot"""
-    fig, ax = plt.subplots(figsize=(16, 15))
+    fig, ax = plt.subplots(figsize=(16, 5))
     
     # Compute Nyquist data
     real, imag, mag, phase = compute_nyquist_data(sys, omega_range)
@@ -453,7 +453,10 @@ st.subheader("Nyquist Diagram")
 fig = plot_nyquist(loop_sys, omega_range, show_unity_circle=show_unity)
 
 if fig:
-    st.pyplot(fig, width='content')
+    # Use a column to control the plot width on the webpage
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.pyplot(fig, width='content')
     plt.close(fig)
 else:
     st.error("Could not generate Nyquist plot")
