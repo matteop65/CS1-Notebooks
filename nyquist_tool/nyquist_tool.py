@@ -221,7 +221,7 @@ def compute_nyquist_data(sys, omega_range):
 
 def plot_nyquist(sys, omega_range, show_unity_circle=True):
     """Create Nyquist plot"""
-    fig, ax = plt.subplots(figsize=(7, 6))
+    fig, ax = plt.subplots(figsize=(6, 5))
     
     # Compute Nyquist data
     real, imag, mag, phase = compute_nyquist_data(sys, omega_range)
@@ -453,7 +453,7 @@ st.subheader("Nyquist Diagram")
 fig = plot_nyquist(loop_sys, omega_range, show_unity_circle=show_unity)
 
 if fig:
-    st.pyplot(fig)
+    st.pyplot(fig, use_container_width=False)
     plt.close(fig)
 else:
     st.error("Could not generate Nyquist plot")
