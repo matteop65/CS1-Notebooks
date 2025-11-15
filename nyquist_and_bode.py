@@ -23,6 +23,15 @@ except Exception as e:
 
 # matplotlib not needed for Plotly plots
 
+from dataclasses import dataclass
+
+@dataclass
+class SpecConfig:
+    show_specs: bool
+    min_phase_margin_deg: float | None
+    min_gain_margin_db: float | None
+    target_bw_rad: float | None
+
 st.set_page_config(page_title="Frequency Domain Plots", layout="wide")
 
 st.title("Nyquist & Bode Plot Tool")
@@ -205,6 +214,22 @@ def bode_np(sys, w):
     phase = np.squeeze(phase) * 180/np.pi
     return mag, phase
 
+def compute_margins_and_bw(L, w):
+    """Compute gain margin, phase margin, and bandwidth"""
+    try:
+        gm, pm, wgc, wpc = ctl.margin(L)
+    except Exception:
+        gm = pm = wgc = wpc = np.nan
+    T = ctl.feedback(L, 1)
+    try:
+        magT, phaseT = bode_np(T, w)
+        magT_db = 20*np.log10(magT)
+        idx = np.where(magT_db <= -3.0)[0]
+        bw = w[idx[0]] if len(idx) > 0 else np.nan
+    except Exception:
+        bw = np.nan
+    return gm, pm, wgc, wpc, bw
+
 def compute_nyquist_data(sys, omega_range, delay_info=None):
     """Compute Nyquist plot data with optional exact time delay"""
     try:
@@ -310,7 +335,7 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True, delay_info=None):
     
     return fig
 
-def plot_bode(sys, omega_range, delay_info=None):
+def plot_bode(sys, omega_range, delay_info=None, show_margins=True, specs=None, freq_bounds=None):
     """Create interactive Bode plots using Plotly"""
     mag, phase = bode_np(sys, omega_range)
     
@@ -341,11 +366,13 @@ def plot_bode(sys, omega_range, delay_info=None):
             if omega_min <= freq <= omega_max:
                 minor_freqs.append(freq)
     
-    # Compute margins
-    try:
-        gm, pm, wgc, wpc = ctl.margin(sys)
-    except Exception:
-        gm = pm = wgc = wpc = np.nan
+    # Compute margins and bandwidth
+    gm, pm, wgc, wpc, bw = compute_margins_and_bw(sys, omega_range)
+    
+    if specs is None:
+        specs = SpecConfig(False, None, None, None)
+    if freq_bounds is None:
+        freq_bounds = {"show": False}
     
     fig = make_subplots(
         rows=2, cols=1,
@@ -397,14 +424,27 @@ def plot_bode(sys, omega_range, delay_info=None):
         )
     
     # Gain margin indicator
-    if np.isfinite(gm) and np.isfinite(wgc) and wgc > 0:
+    if show_margins and np.isfinite(gm) and np.isfinite(wgc) and wgc > 0:
         try:
             mag_at_wgc = 20 * np.log10(np.abs(ctl.freqresp(sys, [wgc])[0][0]))
             gm_db = 20 * np.log10(gm)
             # Vertical line at gain crossover frequency
             fig.add_vline(
                 x=wgc, line_dash="dot", line_color="blue", 
-                line_width=1.0, opacity=0.6, row=1, col=1
+                line_width=1.0, opacity=0.8, row=1, col=1
+            )
+            # Line connecting to 0 dB
+            fig.add_trace(
+                go.Scatter(
+                    x=[wgc, wgc],
+                    y=[mag_at_wgc, 0],
+                    mode='lines',
+                    name=f'GM = {gm_db:.2f} dB',
+                    line=dict(color='blue', width=1.2, dash='dot'),
+                    showlegend=True,
+                    hovertemplate=f'Gain Crossover: ω={wgc:.4f} rad/s<br>GM={gm_db:.2f} dB<extra></extra>'
+                ),
+                row=1, col=1
             )
             # Marker at gain crossover
             fig.add_trace(
@@ -412,15 +452,98 @@ def plot_bode(sys, omega_range, delay_info=None):
                     x=[wgc],
                     y=[mag_at_wgc],
                     mode='markers',
-                    name=f'GM = {gm_db:.2f} dB',
-                    marker=dict(symbol='diamond', size=10, color='blue'),
-                    showlegend=True,
+                    name='',
+                    marker=dict(symbol='circle', size=8, color='blue'),
+                    showlegend=False,
                     hovertemplate=f'Gain Crossover: ω={wgc:.4f} rad/s<br>GM={gm_db:.2f} dB<extra></extra>'
                 ),
                 row=1, col=1
             )
+            # Text annotation for GM
+            fig.add_annotation(
+                x=wgc,
+                y=(mag_at_wgc + 0) / 2,
+                text=f"GM<br>{gm_db:.2f} dB",
+                showarrow=False,
+                font=dict(size=9, color="blue"),
+                bgcolor="white",
+                bordercolor="blue",
+                borderwidth=1,
+                row=1, col=1
+            )
         except Exception:
             pass
+    
+    # Min Gain Margin specification
+    if specs.show_specs and specs.min_gain_margin_db is not None:
+        min_gm_db = specs.min_gain_margin_db
+        fig.add_hline(
+            y=min_gm_db, line_dash="dash", line_color="orange", 
+            line_width=2, opacity=0.7, row=1, col=1
+        )
+        # Find where magnitude > min_gm_db and add green regions
+        satisfied = mag_db > min_gm_db
+        if np.any(satisfied):
+            # Create segments where spec is satisfied
+            for i in range(len(omega_range) - 1):
+                if satisfied[i] and satisfied[i+1]:
+                    fig.add_shape(
+                        type="rect",
+                        x0=omega_range[i], x1=omega_range[i+1],
+                        y0=-200, y1=200,
+                        fillcolor="green",
+                        opacity=0.15,
+                        layer="below",
+                        line_width=0,
+                        row=1, col=1
+                    )
+    
+    # Frequency-dependent bounds
+    if freq_bounds["show"]:
+        freq_low_max = freq_bounds["freq_low_max"]
+        mag_low_min = freq_bounds["mag_low_min"]
+        freq_high_min = freq_bounds["freq_high_min"]
+        mag_high_max = freq_bounds["mag_high_max"]
+        
+        # Low frequency bound
+        low_mask = omega_range <= freq_low_max
+        if np.any(low_mask):
+            fig.add_trace(
+                go.Scatter(
+                    x=omega_range[low_mask],
+                    y=[mag_low_min] * np.sum(low_mask),
+                    mode='lines',
+                    name='Disturbance attenuation',
+                    line=dict(color='red', width=2, dash='dash'),
+                    fill='tonexty',
+                    fillcolor='rgba(255,0,0,0.2)',
+                    row=1, col=1
+                )
+            )
+            fig.add_vline(
+                x=freq_low_max, line_dash="dash", line_color="gray", 
+                line_width=1, opacity=0.5, row=1, col=1
+            )
+        
+        # High frequency bound
+        high_mask = omega_range >= freq_high_min
+        if np.any(high_mask):
+            fig.add_trace(
+                go.Scatter(
+                    x=omega_range[high_mask],
+                    y=[mag_high_max] * np.sum(high_mask),
+                    mode='lines',
+                    name='Measurement noise',
+                    line=dict(color='red', width=2, dash='dash'),
+                    fill='tonexty',
+                    fillcolor='rgba(255,0,0,0.2)',
+                    row=1, col=1
+                )
+            )
+            fig.add_vline(
+                x=freq_high_min, line_dash="dash", line_color="gray", 
+                line_width=1, opacity=0.5, row=1, col=1
+            )
     
     # Phase plot
     fig.add_trace(
@@ -464,14 +587,45 @@ def plot_bode(sys, omega_range, delay_info=None):
             line_width=0.3, opacity=0.4, row=2, col=1
         )
     
+    # Bandwidth indicator
+    if np.isfinite(bw) and bw > 0:
+        fig.add_vline(
+            x=bw, line_dash="dash", line_color="green", 
+            line_width=1.5, opacity=0.6, row=2, col=1
+        )
+        fig.add_annotation(
+            x=bw,
+            y=np.max(phase) if len(phase) > 0 else 0,
+            text=f"BW<br>ω_bw={bw:.3g}",
+            showarrow=False,
+            font=dict(size=9, color="green"),
+            bgcolor="white",
+            bordercolor="green",
+            borderwidth=1,
+            row=2, col=1
+        )
+    
     # Phase margin indicator
-    if np.isfinite(pm) and np.isfinite(wpc) and wpc > 0:
+    if show_margins and np.isfinite(pm) and np.isfinite(wpc) and wpc > 0:
         try:
             phase_at_wpc = np.interp(wpc, omega_range, phase)
             # Vertical line at phase crossover frequency
             fig.add_vline(
                 x=wpc, line_dash="dot", line_color="red", 
-                line_width=1.0, opacity=0.6, row=2, col=1
+                line_width=1.0, opacity=0.8, row=2, col=1
+            )
+            # Line connecting to -180°
+            fig.add_trace(
+                go.Scatter(
+                    x=[wpc, wpc],
+                    y=[phase_at_wpc, -180],
+                    mode='lines',
+                    name=f'PM = {pm:.2f}°',
+                    line=dict(color='red', width=1.2, dash='dot'),
+                    showlegend=True,
+                    hovertemplate=f'Phase Crossover: ω={wpc:.4f} rad/s<br>PM={pm:.2f}°<extra></extra>'
+                ),
+                row=2, col=1
             )
             # Marker at phase crossover
             fig.add_trace(
@@ -479,15 +633,72 @@ def plot_bode(sys, omega_range, delay_info=None):
                     x=[wpc],
                     y=[phase_at_wpc],
                     mode='markers',
-                    name=f'PM = {pm:.2f}°',
-                    marker=dict(symbol='diamond', size=10, color='red'),
-                    showlegend=True,
+                    name='',
+                    marker=dict(symbol='circle', size=8, color='red'),
+                    showlegend=False,
                     hovertemplate=f'Phase Crossover: ω={wpc:.4f} rad/s<br>PM={pm:.2f}°<extra></extra>'
                 ),
                 row=2, col=1
             )
+            # Text annotation for PM
+            y_mid = (phase_at_wpc - 180) / 2
+            fig.add_annotation(
+                x=wpc,
+                y=y_mid,
+                text=f"PM<br>{pm:.2f}°",
+                showarrow=False,
+                font=dict(size=9, color="red"),
+                bgcolor="white",
+                bordercolor="red",
+                borderwidth=1,
+                row=2, col=1
+            )
         except Exception:
             pass
+    
+    # Min Phase Margin specification
+    if specs.show_specs and specs.min_phase_margin_deg is not None:
+        min_pm = specs.min_phase_margin_deg
+        spec_phase_line = -180 + min_pm
+        fig.add_hline(
+            y=spec_phase_line, line_dash="dash", line_color="orange", 
+            line_width=2, opacity=0.7, row=2, col=1
+        )
+        # Find where phase > spec_phase_line and add green regions
+        satisfied = phase > spec_phase_line
+        if np.any(satisfied):
+            # Create segments where spec is satisfied
+            for i in range(len(omega_range) - 1):
+                if satisfied[i] and satisfied[i+1]:
+                    fig.add_shape(
+                        type="rect",
+                        x0=omega_range[i], x1=omega_range[i+1],
+                        y0=-400, y1=400,
+                        fillcolor="green",
+                        opacity=0.15,
+                        layer="below",
+                        line_width=0,
+                        row=2, col=1
+                    )
+    
+    # Target bandwidth
+    if specs.show_specs and specs.target_bw_rad is not None:
+        target_bw = specs.target_bw_rad
+        fig.add_vline(
+            x=target_bw, line_dash="dash", line_color="purple", 
+            line_width=2, opacity=0.7, row=2, col=1
+        )
+        fig.add_annotation(
+            x=target_bw,
+            y=np.max(phase) if len(phase) > 0 else 0,
+            text=f"Target BW<br>{target_bw:.3g} rad/s",
+            showarrow=False,
+            font=dict(size=9, color="purple"),
+            bgcolor="white",
+            bordercolor="purple",
+            borderwidth=1,
+            row=2, col=1
+        )
     
     # Update x-axis for both subplots (log scale with proper grid)
     # Configure major and minor grid lines for logarithmic scale
@@ -626,6 +837,63 @@ with st.sidebar:
     omega_range = np.logspace(np.log10(omega_min), np.log10(omega_max), n_points)
     
     show_unity = st.checkbox("Show unit circle", value=True)
+    
+    show_margins = st.checkbox("Show margins on Bode plot", value=True)
+
+st.sidebar.header("Frequency Domain Specifications")
+st.sidebar.caption("(Bode obstacle course)")
+
+with st.sidebar:
+    show_specs = st.checkbox("Enable specifications", value=False)
+    
+    # Phase Margin
+    show_pm = st.checkbox("Show phase margin specification", value=False) if show_specs else False
+    min_pm = (
+        st.number_input("Min phase margin (deg)", value=45.0, step=1.0, format="%.6g")
+        if show_pm else None
+    )
+    
+    # Gain Margin
+    show_gm = st.checkbox("Show gain margin specification", value=False) if show_specs else False
+    min_gm_db = (
+        st.number_input("Min gain margin (dB)", value=10.0, step=1.0, format="%.6g")
+        if show_gm else None
+    )
+    
+    # Target Bandwidth
+    show_bw = st.checkbox("Show target bandwidth specification", value=False) if show_specs else False
+    target_bw = (
+        st.number_input("Target closed-loop BW ω_B (rad/s)", value=10.0, step=0.5, format="%.6g")
+        if show_bw else None
+    )
+    
+    # Frequency-dependent bounds
+    show_bounds = st.checkbox("Show frequency-dependent bounds", value=False) if show_specs else False
+    if show_bounds:
+        st.markdown("**Low-frequency (disturbance attenuation):**")
+        freq_low_max = st.number_input("ω_low_max (rad/s)", value=0.1, step=0.01, format="%.6g")
+        mag_low_min = st.number_input("Min magnitude at low freq (dB)", value=-20.0, step=1.0, format="%.6g")
+        
+        st.markdown("**High-frequency (measurement noise):**")
+        freq_high_min = st.number_input("ω_high_min (rad/s)", value=10.0, step=10.0, format="%.6g")
+        mag_high_max = st.number_input("Max magnitude at high freq (dB)", value=-40.0, step=1.0, format="%.6g")
+        
+        freq_bounds = {
+            "show": True,
+            "freq_low_max": freq_low_max,
+            "mag_low_min": mag_low_min,
+            "freq_high_min": freq_high_min,
+            "mag_high_max": mag_high_max,
+        }
+    else:
+        freq_bounds = {"show": False}
+    
+    specs = SpecConfig(
+        show_specs=show_specs,
+        min_phase_margin_deg=min_pm,
+        min_gain_margin_db=min_gm_db,
+        target_bw_rad=target_bw
+    )
 
 # ---------- Display Results ----------
 
@@ -788,9 +1056,41 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### Bode Plot")
-    bode_fig = plot_bode(loop_sys, omega_range, delay_info)
+    bode_fig = plot_bode(loop_sys, omega_range, delay_info, show_margins, specs, freq_bounds)
     if bode_fig:
         st.plotly_chart(bode_fig, width='stretch')
+    
+    # Display margins and bandwidth
+    if show_margins:
+        gm, pm, wgc, wpc, bw = compute_margins_and_bw(loop_sys, omega_range)
+        st.markdown("**Margins & Bandwidth**")
+        colA, colB, colC, colD, colE = st.columns(5)
+        
+        if np.isfinite(gm):
+            gm_db = 20 * np.log10(gm)
+            colA.metric("Gain margin (×)", f"{gm:.4g}", f"{gm_db:.2f} dB")
+        else:
+            colA.metric("Gain margin (×)", "∞", "∞ dB")
+        
+        if np.isfinite(pm):
+            colB.metric("Phase margin", f"{pm:.2f}°", "")
+        else:
+            colB.metric("Phase margin", "∞", "")
+        
+        if np.isfinite(wgc):
+            colC.metric("ω_gc (rad/s)", f"{wgc:.4g}", "")
+        else:
+            colC.metric("ω_gc (rad/s)", "N/A", "")
+        
+        if np.isfinite(wpc):
+            colD.metric("ω_pc (rad/s)", f"{wpc:.4g}", "")
+        else:
+            colD.metric("ω_pc (rad/s)", "N/A", "")
+        
+        if np.isfinite(bw):
+            colE.metric("BW (rad/s)", f"{bw:.4g}", "")
+        else:
+            colE.metric("BW (rad/s)", "N/A", "")
 
 with col2:
     st.markdown("### Nyquist Plot")
