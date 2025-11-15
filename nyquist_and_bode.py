@@ -551,9 +551,9 @@ def plot_bode(sys, omega_range, delay_info=None):
                 yref="paper",
                 text="<b>Bode Plot - Magnitude</b>",
                 showarrow=False,
-                font=dict(size=14, color="black"),
+                font=dict(size=14, color="white"),
                 xanchor="center",
-                bgcolor="white",
+                bgcolor="black",
                 bordercolor="black",
                 borderwidth=0
             ),
@@ -564,9 +564,9 @@ def plot_bode(sys, omega_range, delay_info=None):
                 yref="paper",
                 text="<b>Bode Plot - Phase</b>",
                 showarrow=False,
-                font=dict(size=14, color="black"),
+                font=dict(size=14, color="white"),
                 xanchor="center",
-                bgcolor="white",
+                bgcolor="black",
                 bordercolor="black",
                 borderwidth=0
             )
