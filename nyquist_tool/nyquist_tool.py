@@ -14,24 +14,14 @@ except Exception as e:
     st.error("The 'sympy' library is required. Install with: pip install sympy")
     raise
 
-from dataclasses import dataclass
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Nyquist Plot Tool", layout="wide")
 
 st.title("Nyquist Plot Tool")
-st.caption("Nyquist plots, gain/phase margins, stability analysis, time delays, and compensators.")
+st.caption("Nyquist plots, stability analysis, time delays, and compensators.")
 
 # ---------- Helpers ----------
-@dataclass
-class StabilityInfo:
-    """Stores stability analysis results"""
-    gm: float  # gain margin (dB)
-    pm: float  # phase margin (deg)
-    gm_freq: float  # gain crossover frequency
-    pm_freq: float  # phase crossover frequency
-    stable: bool
-    
 def parse_native_tf(tf_string: str):
     """Parse native transfer function string like '(1 / (s^2+2*s+2))'"""
     try:
@@ -217,34 +207,7 @@ def compute_nyquist_data(sys, omega_range):
         st.error(f"Error computing Nyquist data: {e}")
         return None, None, None, None
 
-def compute_stability_margins(sys):
-    """Compute gain and phase margins"""
-    try:
-        gm, pm, wpc, wgc = ctl.margin(sys)
-        
-        # Convert to dB
-        gm_db = 20 * np.log10(gm) if gm > 0 else np.inf
-        
-        # Check stability using Nyquist criterion
-        # Count poles in RHP
-        poles = ctl.pole(sys)
-        rhp_poles = np.sum(np.real(poles) > 0)
-        
-        # Simple stability check: positive margins and no RHP poles
-        stable = (gm > 1) and (pm > 0) and (rhp_poles == 0)
-        
-        return StabilityInfo(
-            gm=gm_db,
-            pm=pm,
-            gm_freq=wgc,
-            pm_freq=wpc,
-            stable=stable
-        )
-    except Exception as e:
-        st.warning(f"Could not compute margins: {e}")
-        return None
-
-def plot_nyquist(sys, omega_range, show_unity_circle=True, show_margins=True):
+def plot_nyquist(sys, omega_range, show_unity_circle=True):
     """Create Nyquist plot"""
     fig, ax = plt.subplots(figsize=(10, 8))
     
@@ -271,32 +234,6 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True, show_margins=True):
     if show_unity_circle:
         theta = np.linspace(0, 2*np.pi, 200)
         ax.plot(np.cos(theta), np.sin(theta), 'k--', alpha=0.3, linewidth=1, label='Unit circle')
-    
-    # Add gain and phase margins visualization
-    if show_margins:
-        stability = compute_stability_margins(sys)
-        if stability:
-            # Find phase crossover (where phase = -180°)
-            phase_180_idx = np.argmin(np.abs(phase + np.pi))
-            if mag[phase_180_idx] > 0.01:  # Valid crossover
-                ax.plot([0, real[phase_180_idx]], [0, imag[phase_180_idx]], 
-                       'g--', linewidth=2, alpha=0.5)
-                ax.plot(real[phase_180_idx], imag[phase_180_idx], 
-                       'go', markersize=8)
-                ax.text(real[phase_180_idx], imag[phase_180_idx], 
-                       f'  PM point\n  ω={stability.pm_freq:.2f}', 
-                       fontsize=9, color='green')
-            
-            # Find gain crossover (where |L(jω)| = 1)
-            gain_1_idx = np.argmin(np.abs(mag - 1))
-            if abs(mag[gain_1_idx] - 1) < 0.1:  # Valid crossover
-                ax.plot([0, real[gain_1_idx]], [0, imag[gain_1_idx]], 
-                       'm--', linewidth=2, alpha=0.5)
-                ax.plot(real[gain_1_idx], imag[gain_1_idx], 
-                       'mo', markersize=8)
-                ax.text(real[gain_1_idx], imag[gain_1_idx], 
-                       f'  GM point\n  ω={stability.gm_freq:.2f}', 
-                       fontsize=9, color='magenta')
     
     # Grid and labels
     ax.grid(True, alpha=0.3)
@@ -365,7 +302,6 @@ with st.sidebar:
         omega_range = np.linspace(omega_min, omega_max, n_points)
     
     show_unity = st.checkbox("Show unit circle", value=True)
-    show_margins = st.checkbox("Show gain/phase margins", value=True)
 
 # ---------- Display Results ----------
 
@@ -507,39 +443,10 @@ else:
                 \end{{aligned}}"""
             )
 
-# Compute stability margins
-stability = compute_stability_margins(loop_sys)
-
-if stability:
-    st.subheader("Stability Analysis")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        if np.isinf(stability.gm):
-            st.metric("Gain Margin", "∞ dB")
-        else:
-            st.metric("Gain Margin", f"{stability.gm:.2f} dB")
-    
-    with col2:
-        st.metric("Phase Margin", f"{stability.pm:.2f}°")
-    
-    with col3:
-        st.metric("GM Frequency", f"{stability.gm_freq:.3f} rad/s")
-    
-    with col4:
-        st.metric("PM Frequency", f"{stability.pm_freq:.3f} rad/s")
-    
-    # Stability indicator
-    if stability.stable:
-        st.success("✓ System appears to be stable (positive margins, no RHP poles)")
-    else:
-        st.error("✗ System may be unstable (check Nyquist encirclements)")
-
 # Plot Nyquist diagram
 st.subheader("Nyquist Diagram")
 
-fig = plot_nyquist(loop_sys, omega_range, show_unity_circle=show_unity, show_margins=show_margins)
+fig = plot_nyquist(loop_sys, omega_range, show_unity_circle=show_unity)
 
 if fig:
     st.pyplot(fig)
@@ -556,13 +463,10 @@ with st.expander("ℹ️ How to interpret the Nyquist plot"):
     
     **Key Points:**
     - **Critical Point (-1, 0)**: The system is stable if the Nyquist curve does not encircle this point
-    - **Gain Margin (GM)**: Distance from the curve to (-1, 0) along the negative real axis
-    - **Phase Margin (PM)**: Angular distance from the curve to (-1, 0) at unity gain
     
     **Stability Rules:**
     - For systems with no RHP poles: No encirclements of (-1, 0) → Stable
     - For systems with N RHP poles: N counter-clockwise encirclements → Stable
-    - Positive GM and PM generally indicate stability
     
     **The Plot Shows:**
     - Blue solid line: L(jω) for positive frequencies
@@ -576,9 +480,8 @@ with st.expander("📝 Tips"):
     st.markdown("""
     - Adjust the frequency range to see more detail in specific regions
     - Use logarithmic scale for a wider frequency range
-    - Enable margins visualization to see GM and PM graphically
     - The unit circle helps identify the unity gain crossover
-    - Add compensators to improve stability margins
+    - Add compensators to improve stability
     - Time delay rotates the phase, which can destabilize the system
     """)
 
