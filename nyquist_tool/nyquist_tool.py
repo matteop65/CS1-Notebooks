@@ -453,7 +453,7 @@ st.subheader("Nyquist Diagram")
 fig = plot_nyquist(loop_sys, omega_range, show_unity_circle=show_unity)
 
 if fig:
-    st.pyplot(fig, use_container_width=False)
+    st.pyplot(fig, width='content')
     plt.close(fig)
 else:
     st.error("Could not generate Nyquist plot")
