@@ -546,7 +546,7 @@ def plot_bode(sys, omega_range, delay_info=None):
         annotations=[
             dict(
                 x=0.5,
-                y=1.1,
+                y=1.05,
                 xref="paper",
                 yref="paper",
                 text="<b>Bode Plot - Magnitude</b>",
