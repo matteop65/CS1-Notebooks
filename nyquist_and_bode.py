@@ -350,7 +350,7 @@ def plot_bode(sys, omega_range, delay_info=None):
     fig = make_subplots(
         rows=2, cols=1,
         subplot_titles=("", ""),  # Empty titles, we'll add custom ones
-        vertical_spacing=0.30,
+        vertical_spacing=0.15,
         row_heights=[0.5, 0.5],
         specs=[[{"secondary_y": False}],
                [{"secondary_y": False}]]
@@ -546,23 +546,29 @@ def plot_bode(sys, omega_range, delay_info=None):
         annotations=[
             dict(
                 x=0.5,
-                y=1.08,
+                y=1.02,
                 xref="paper",
                 yref="paper",
-                text="Bode Plot - Magnitude",
+                text="<b>Bode Plot - Magnitude</b>",
                 showarrow=False,
-                font=dict(size=14, color="black", family="Arial"),
-                xanchor="center"
+                font=dict(size=14, color="black"),
+                xanchor="center",
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=0
             ),
             dict(
                 x=0.5,
-                y=0.55,
+                y=0.50,
                 xref="paper",
                 yref="paper",
-                text="Bode Plot - Phase",
+                text="<b>Bode Plot - Phase</b>",
                 showarrow=False,
-                font=dict(size=14, color="black", family="Arial"),
-                xanchor="center"
+                font=dict(size=14, color="black"),
+                xanchor="center",
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=0
             )
         ]
     )
