@@ -33,12 +33,12 @@ with st.expander("📖 Instructions", expanded=False):
     **How to use this tool:**
     
     1. **Enter Plant Transfer Function**: In the sidebar, select an input format and enter your plant transfer function P(s).
-       - **Native Transfer Function**: Enter directly using 's' (e.g., `1/(s^2+2*s+2)`)
+       - **Transfer Function (s-form)**: Enter directly using 's' (e.g., `1/(s^2+2*s+2)`)
        - **Numerator / Denominator**: Enter coefficients as comma-separated values
        - **Zeros / Poles / Gain**: Specify zeros, poles, and gain
     
     2. **Add Compensator (Optional)**: Check "Add compensator C(s)" to include a controller.
-       - Choose from PID, Lead, Lag, Lead-Lag, or Custom (native TF format)
+       - Choose from PID, Lead, Lag, Lead-Lag, or Custom (s-form)
     
     3. **Add Time Delay (Optional)**: Check "Add time delay e^(-τs)" to include time delay.
        - Choose between Padé approximation or exact delay (frequency-domain only)
@@ -125,7 +125,7 @@ def parse_tf(mode: str):
             return sys, None
         except Exception as e:
             return None, f"Failed to parse zeros/poles/gain: {e}"
-    elif mode == "Native Transfer Function":
+    elif mode == "Transfer Function (s-form)":
         tf_string = st.text_input(
             "Transfer function (e.g., 1/(s^2+2*s+2) or (s+1)/(s^2+3*s+2))", 
             value="1/(s^2+2*s+2)",
@@ -379,7 +379,7 @@ st.sidebar.header("Plant Transfer Function P(s)")
 # Input mode
 input_mode = st.sidebar.radio(
     "Input format",
-    ["Native Transfer Function", "Numerator / Denominator", "Zeros / Poles / Gain"],
+    ["Transfer Function (s-form)", "Numerator / Denominator", "Zeros / Poles / Gain"],
     index=0
 )
 
