@@ -232,8 +232,9 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     head_width = plot_scale * 0.015
     head_length = plot_scale * 0.015
     
-    # Place arrow in the middle of positive frequency curve
-    mid_idx = len(real) // 2
+    # Place arrow at the center of positive frequency curve (ω: 0 → infinity)
+    # The center is at the middle index of the frequency range
+    mid_idx = len(real) // 4
     if mid_idx < len(real) - 1:
         dx = real[mid_idx+1] - real[mid_idx]
         dy = imag[mid_idx+1] - imag[mid_idx]
@@ -245,7 +246,8 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
                     head_width=head_width, head_length=head_length, 
                     fc='blue', ec='blue', alpha=0.7, zorder=5)
     
-    # Place arrow in the middle of negative frequency curve
+    # Place arrow at the center of negative frequency curve (ω: -infinity → 0)
+    # This is the mirror of the positive frequency curve, so same index but mirrored
     if mid_idx < len(real) - 1:
         dx = real[mid_idx+1] - real[mid_idx]
         dy = -(imag[mid_idx+1] - imag[mid_idx])  # Negative for mirror
