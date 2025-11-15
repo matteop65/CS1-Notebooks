@@ -251,7 +251,6 @@ def plot_nyquist(sys, omega_range, show_unity_circle=True):
     ax.set_ylabel('Imaginary Axis', fontsize=12)
     ax.set_title('Nyquist Plot', fontsize=14, fontweight='bold')
     ax.legend(loc='best', fontsize=9)
-    ax.set_aspect('equal', adjustable='datalim')
     
     plt.tight_layout()
     return fig
