@@ -191,30 +191,55 @@ def apply_compensator(sys):
     return sys, ctl.tf([1],[1]), None
 
 def apply_time_delay(sys, tau):
-    """Apply time delay using Pade approximation"""
+    """Apply time delay using Pade approximation or exact delay"""
     if tau <= 0:
-        return sys
+        return sys, None, None
     
-    # Use Pade approximation for time delay
-    order = st.number_input("Pade approximation order", min_value=1, max_value=10, value=3, step=1)
-    st.session_state["pade_order"] = order
+    # Load MathJax for LaTeX rendering in radio labels
+    st.markdown(
+        r"<script type='text/javascript' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>",
+        unsafe_allow_html=True
+    )
     
-    try:
-        # Create Pade approximation for e^(-tau*s)
-        num_pade, den_pade = ctl.pade(tau, order)
-        delay_sys = ctl.tf(num_pade, den_pade)
-        return sys * delay_sys
-    except Exception as e:
-        st.error(f"Error applying time delay: {e}")
-        return sys
+    # Use LaTeX directly in radio labels
+    method = st.radio(
+        "Delay model",
+        [
+            "Padé approximation",
+            "Exact $e^{-s\\tau}$ (frequency-domain only)"
+        ],
+        index=0,
+        horizontal=True,
+    )
+    
+    # Handle the two delay types
+    if method.startswith("Padé"):
+        order = st.number_input("Padé order", min_value=1, max_value=10, value=3, step=1)
+        st.session_state["pade_order"] = order
+        try:
+            num_d, den_d = ctl.pade(tau, order)
+            D = ctl.tf(num_d, den_d)
+            return sys * D, ("pade", tau, order, D), None
+        except Exception as e:
+            st.error(f"Error applying time delay: {e}")
+            return sys, None, None
+    else:
+        return sys, ("exact", tau, None, None), None
 
-def compute_nyquist_data(sys, omega_range):
-    """Compute Nyquist plot data"""
+def compute_nyquist_data(sys, omega_range, delay_info=None):
+    """Compute Nyquist plot data with optional exact time delay"""
     try:
         # Compute frequency response
         response = ctl.frequency_response(sys, omega_range)
         mag = np.abs(response.fresp[0, 0, :])
         phase = np.angle(response.fresp[0, 0, :])
+        
+        # Apply exact time delay in frequency domain if specified
+        if delay_info is not None and delay_info[0] == "exact":
+            tau = delay_info[1]
+            # Exact delay: multiply by e^(-j*omega*tau) = cos(-omega*tau) + j*sin(-omega*tau)
+            # This rotates the phase by -omega*tau
+            phase = phase - omega_range * tau
         
         # Convert to real and imaginary parts
         real = mag * np.cos(phase)
@@ -225,10 +250,10 @@ def compute_nyquist_data(sys, omega_range):
         st.error(f"Error computing Nyquist data: {e}")
         return None, None, None, None
 
-def plot_nyquist(sys, omega_range, show_unity_circle=True):
+def plot_nyquist(sys, omega_range, show_unity_circle=True, delay_info=None):
     """Create interactive Nyquist plot using Plotly"""
     # Compute Nyquist data
-    real, imag, mag, phase = compute_nyquist_data(sys, omega_range)
+    real, imag, mag, phase = compute_nyquist_data(sys, omega_range, delay_info)
     
     if real is None:
         return None
@@ -350,9 +375,12 @@ with st.sidebar:
     add_delay = st.checkbox("Add time delay e^(-τs)", value=False)
     if add_delay:
         tau = st.number_input("Time delay τ (seconds)", value=0.1, min_value=0.0, step=0.01, format="%.6g")
-        loop_sys = apply_time_delay(loop_sys, tau)
+        loop_sys, delay_info, delay_err = apply_time_delay(loop_sys, tau)
+        if delay_err:
+            st.warning(delay_err)
     else:
         tau = 0.0
+        delay_info = None
 
 st.sidebar.header("Nyquist Plot Settings")
 
@@ -418,21 +446,30 @@ if not comp_active:
     if not add_delay:
         st.latex(r"L(s) = P(s) = " + tf_to_latex(plant_sys))
     else:
-        # With Pade delay
-        order = st.session_state.get("pade_order", 3)
-        num_d, den_d = ctl.pade(tau, order)
-        D = ctl.tf(num_d, den_d)
-        num_str = poly_to_latex(num_d)
-        den_str = poly_to_latex(den_d)
-        pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
-        st.latex(
-            rf"""\begin{{aligned}}
-            &{pade_formula}\\[6pt]
-            L(s) &= P(s)\,D_{{\text{{Padé}}}}(s)
-            = \big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[8pt]
-            L(s) &= {tf_to_latex(loop_sys)}
-            \end{{aligned}}"""
-        )
+        if delay_info is not None and delay_info[0] == "exact":
+            # Exact delay
+            st.latex(
+                rf"""\begin{{aligned}}
+                L(s) &= P(s)\,e^{{-s\tau}},\quad \tau={tau:.3g}\\[6pt]
+                L(s) &= {tf_to_latex(plant_sys)}\,e^{{-{tau:.3g}s}}
+                \end{{aligned}}"""
+            )
+        elif delay_info is not None:
+            # With Pade delay
+            order = delay_info[2]
+            D = delay_info[3]
+            num_d, den_d = ctl.pade(tau, order)
+            num_str = poly_to_latex(num_d)
+            den_str = poly_to_latex(den_d)
+            pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
+            st.latex(
+                rf"""\begin{{aligned}}
+                &{pade_formula}\\[6pt]
+                L(s) &= P(s)\,D_{{\text{{Padé}}}}(s)
+                = \big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[8pt]
+                L(s) &= {tf_to_latex(loop_sys)}
+                \end{{aligned}}"""
+            )
 
 # With compensator
 else:
@@ -465,21 +502,30 @@ else:
                 \end{{aligned}}"""
             )
         else:
-            # With Pade delay
-            order = st.session_state.get("pade_order", 3)
-            num_d, den_d = ctl.pade(tau, order)
-            D = ctl.tf(num_d, den_d)
-            num_str = poly_to_latex(num_d)
-            den_str = poly_to_latex(den_d)
-            pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
-            st.latex(
-                rf"""\begin{{aligned}}
-                &{pade_formula}\\[6pt]
-                L(s) &= C(s)\,P(s)\,D_{{\text{{Padé}}}}(s)
-                = \big({pid_expr}\big)\,\big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[10pt]
-                L(s) &= {tf_to_latex(loop_sys)}
-                \end{{aligned}}"""
-            )
+            if delay_info is not None and delay_info[0] == "exact":
+                # Exact delay
+                st.latex(
+                    rf"""\begin{{aligned}}
+                    L(s) &= C(s)\,P(s)\,e^{{-s\tau}},\quad \tau={tau:.3g}\\[8pt]
+                    L(s) &= {tf_to_latex(L)}\,e^{{-{tau:.3g}s}}
+                    \end{{aligned}}"""
+                )
+            elif delay_info is not None:
+                # With Pade delay
+                order = delay_info[2]
+                D = delay_info[3]
+                num_d, den_d = ctl.pade(tau, order)
+                num_str = poly_to_latex(num_d)
+                den_str = poly_to_latex(den_d)
+                pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
+                st.latex(
+                    rf"""\begin{{aligned}}
+                    &{pade_formula}\\[6pt]
+                    L(s) &= C(s)\,P(s)\,D_{{\text{{Padé}}}}(s)
+                    = \big({pid_expr}\big)\,\big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[10pt]
+                    L(s) &= {tf_to_latex(loop_sys)}
+                    \end{{aligned}}"""
+                )
     else:
         # Compensator without PID
         if not add_delay:
@@ -490,26 +536,35 @@ else:
                 \end{{aligned}}"""
             )
         else:
-            # With Pade delay
-            order = st.session_state.get("pade_order", 3)
-            num_d, den_d = ctl.pade(tau, order)
-            D = ctl.tf(num_d, den_d)
-            num_str = poly_to_latex(num_d)
-            den_str = poly_to_latex(den_d)
-            pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
-            st.latex(
-                rf"""\begin{{aligned}}
-                &{pade_formula}\\[6pt]
-                L(s) &= C(s)\,P(s)\,D_{{\text{{Padé}}}}(s)
-                = \big({tf_to_latex(comp_sys)}\big)\,\big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[10pt]
-                L(s) &= {tf_to_latex(loop_sys)}
-                \end{{aligned}}"""
-            )
+            if delay_info is not None and delay_info[0] == "exact":
+                # Exact delay
+                st.latex(
+                    rf"""\begin{{aligned}}
+                    L(s) &= C(s)\,P(s)\,e^{{-s\tau}},\quad \tau={tau:.3g}\\[8pt]
+                    L(s) &= {tf_to_latex(L)}\,e^{{-{tau:.3g}s}}
+                    \end{{aligned}}"""
+                )
+            elif delay_info is not None:
+                # With Pade delay
+                order = delay_info[2]
+                D = delay_info[3]
+                num_d, den_d = ctl.pade(tau, order)
+                num_str = poly_to_latex(num_d)
+                den_str = poly_to_latex(den_d)
+                pade_formula = rf"e^{{-s\tau}} \approx \frac{{{num_str}}}{{{den_str}}},\quad n={order},\;\tau={tau:.3g}"
+                st.latex(
+                    rf"""\begin{{aligned}}
+                    &{pade_formula}\\[6pt]
+                    L(s) &= C(s)\,P(s)\,D_{{\text{{Padé}}}}(s)
+                    = \big({tf_to_latex(comp_sys)}\big)\,\big({tf_to_latex(plant_sys)}\big)\,\big({tf_to_latex(D)}\big)\\[10pt]
+                    L(s) &= {tf_to_latex(loop_sys)}
+                    \end{{aligned}}"""
+                )
 
 # Plot Nyquist diagram
 st.subheader("Nyquist Diagram")
 
-fig = plot_nyquist(loop_sys, omega_range, show_unity_circle=show_unity)
+fig = plot_nyquist(loop_sys, omega_range, show_unity_circle=show_unity, delay_info=delay_info)
 
 if fig:
     # Use a column to control the plot width on the webpage
