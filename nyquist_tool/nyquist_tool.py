@@ -14,6 +14,12 @@ except Exception as e:
     st.error("The 'sympy' library is required. Install with: pip install sympy")
     raise
 
+try:
+    import plotly.graph_objects as go
+except Exception as e:
+    st.error("The 'plotly' library is required. Install with: pip install plotly")
+    raise
+
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Nyquist Plot Tool", layout="wide")
@@ -220,39 +226,91 @@ def compute_nyquist_data(sys, omega_range):
         return None, None, None, None
 
 def plot_nyquist(sys, omega_range, show_unity_circle=True):
-    """Create Nyquist plot"""
-    fig, ax = plt.subplots(figsize=(10, 8))
-    
+    """Create interactive Nyquist plot using Plotly"""
     # Compute Nyquist data
     real, imag, mag, phase = compute_nyquist_data(sys, omega_range)
     
     if real is None:
         return None
     
+    # Create Plotly figure
+    fig = go.Figure()
+    
     # Plot Nyquist curve for positive frequencies
-    ax.plot(real, imag, 'b-', linewidth=2, label='L(jω) for ω > 0')
+    fig.add_trace(go.Scatter(
+        x=real,
+        y=imag,
+        mode='lines',
+        name='L(jω) for ω > 0',
+        line=dict(color='blue', width=2),
+        hovertemplate='Real: %{x:.4f}<br>Imag: %{y:.4f}<extra></extra>'
+    ))
     
     # Plot Nyquist curve for negative frequencies (mirror)
-    ax.plot(real, -imag, 'b--', linewidth=1.5, alpha=0.6, label='L(jω) for ω < 0')
+    fig.add_trace(go.Scatter(
+        x=real,
+        y=-imag,
+        mode='lines',
+        name='L(jω) for ω < 0',
+        line=dict(color='blue', width=1.5, dash='dash'),
+        opacity=0.6,
+        hovertemplate='Real: %{x:.4f}<br>Imag: %{y:.4f}<extra></extra>'
+    ))
     
     # Plot critical point (-1, 0)
-    ax.plot(-1, 0, 'rx', markersize=15, markeredgewidth=3, label='Critical point (-1, 0)')
+    fig.add_trace(go.Scatter(
+        x=[-1],
+        y=[0],
+        mode='markers',
+        name='Critical point (-1, 0)',
+        marker=dict(symbol='x', size=15, color='red', line=dict(width=2, color='red')),
+        hovertemplate='Critical point (-1, 0)<extra></extra>'
+    ))
     
     # Plot unity circle
     if show_unity_circle:
         theta = np.linspace(0, 2*np.pi, 200)
-        ax.plot(np.cos(theta), np.sin(theta), 'k--', alpha=0.3, linewidth=1, label='Unit circle')
+        fig.add_trace(go.Scatter(
+            x=np.cos(theta),
+            y=np.sin(theta),
+            mode='lines',
+            name='Unit circle',
+            line=dict(color='gray', width=1, dash='dash'),
+            opacity=0.3,
+            hovertemplate='Unit circle<extra></extra>'
+        ))
     
-    # Grid and labels
-    ax.grid(True, alpha=0.3)
-    ax.axhline(y=0, color='k', linewidth=0.8, alpha=0.5)
-    ax.axvline(x=0, color='k', linewidth=0.8, alpha=0.5)
-    ax.set_xlabel('Real Axis', fontsize=12)
-    ax.set_ylabel('Imaginary Axis', fontsize=12)
-    ax.set_title('Nyquist Plot', fontsize=14, fontweight='bold')
-    ax.legend(loc='best', fontsize=9)
+    # Update layout
+    fig.update_layout(
+        title='Nyquist Plot',
+        xaxis_title='Real Axis',
+        yaxis_title='Imaginary Axis',
+        hovermode='closest',
+        width=700,
+        height=600,
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        ),
+        xaxis=dict(
+            showgrid=True,
+            gridcolor='lightgray',
+            zeroline=True,
+            zerolinecolor='black',
+            zerolinewidth=0.8
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor='lightgray',
+            zeroline=True,
+            zerolinecolor='black',
+            zerolinewidth=0.8
+        )
+    )
     
-    plt.tight_layout()
     return fig
 
 # ---------- Main App ----------
@@ -455,8 +513,7 @@ if fig:
     # Use a column to control the plot width on the webpage
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.pyplot(fig, width='content')
-    plt.close(fig)
+        st.plotly_chart(fig, use_container_width=True)
 else:
     st.error("Could not generate Nyquist plot")
 
