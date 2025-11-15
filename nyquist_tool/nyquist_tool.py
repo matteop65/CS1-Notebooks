@@ -8,6 +8,12 @@ except Exception as e:
     st.error("The 'control' library is required. Install with: pip install control")
     raise
 
+try:
+    import sympy as sp
+except Exception as e:
+    st.error("The 'sympy' library is required. Install with: pip install sympy")
+    raise
+
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 
@@ -26,6 +32,41 @@ class StabilityInfo:
     pm_freq: float  # phase crossover frequency
     stable: bool
     
+def parse_native_tf(tf_string: str):
+    """Parse native transfer function string like '(1 / (s^2+2*s+2))'"""
+    try:
+        # Define symbolic variable s
+        s = sp.Symbol('s')
+        
+        # Parse the expression
+        expr = sp.sympify(tf_string)
+        
+        # Get numerator and denominator
+        num_expr, den_expr = expr.as_numer_denom()
+        
+        # Convert to polynomials
+        # Use cancel to simplify and ensure proper polynomial form
+        num_expr = sp.cancel(num_expr)
+        den_expr = sp.cancel(den_expr)
+        
+        # Convert to Poly objects
+        num_poly = sp.Poly(num_expr, s)
+        den_poly = sp.Poly(den_expr, s)
+        
+        # Get coefficients (sympy returns lowest power first, need to reverse)
+        num_coeffs = num_poly.all_coeffs()
+        den_coeffs = den_poly.all_coeffs()
+        
+        # Convert to float and reverse to get highest power first (control library format)
+        num_c = [float(c) for c in reversed(num_coeffs)]
+        den_c = [float(c) for c in reversed(den_coeffs)]
+        
+        # Create transfer function
+        sys = ctl.tf(num_c, den_c)
+        return sys, None
+    except Exception as e:
+        return None, f"Failed to parse native transfer function: {e}"
+
 def parse_tf(mode: str):
     """Parse transfer function from user input"""
     if mode == "Numerator / Denominator":
@@ -49,6 +90,13 @@ def parse_tf(mode: str):
             return sys, None
         except Exception as e:
             return None, f"Failed to parse zeros/poles/gain: {e}"
+    elif mode == "Native Transfer Function":
+        tf_string = st.text_input(
+            "Transfer function (e.g., 1/(s^2+2*s+2) or (s+1)/(s^2+3*s+2))", 
+            value="1/(s^2+2*s+2)",
+            help="Enter transfer function using 's' as the variable. Examples: 1/(s^2+2*s+2), (s+1)/(s^2+3*s+2), s/(s+1)"
+        )
+        return parse_native_tf(tf_string)
     else:
         return None, "Unknown TF input mode"
 
@@ -265,7 +313,7 @@ st.sidebar.header("Plant Transfer Function P(s)")
 # Input mode
 input_mode = st.sidebar.radio(
     "Input format",
-    ["Numerator / Denominator", "Zeros / Poles / Gain"],
+    ["Native Transfer Function", "Numerator / Denominator", "Zeros / Poles / Gain"],
     index=0
 )
 
