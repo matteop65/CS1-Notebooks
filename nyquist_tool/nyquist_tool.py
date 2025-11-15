@@ -603,7 +603,7 @@ if fig:
     # Use a column to control the plot width on the webpage
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 else:
     st.error("Could not generate Nyquist plot")
 
