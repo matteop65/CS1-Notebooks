@@ -148,12 +148,6 @@ def apply_delay(sys):
         return sys, ("exact", tau, None, None), None
 
 def bode_np(sys, w):
-    # mag, phase, omega = ctl.freqresp(sys, w)
-    # mag = np.squeeze(mag)
-    # phase = np.squeeze(phase) * 180/np.pi
-    # return mag, phase
-
-    # def bode_np(sys, w):
     mag, phase, _ = ctl.frequency_response(sys, w)
     mag = np.squeeze(mag)
     phase = np.squeeze(phase)
@@ -572,7 +566,7 @@ with col2:
     ax2.axhline(-180, color="black", lw=0.8, ls="-", alpha=0.7)
 
     # Bandwidth
-    if np.isfinite(bw):
+    if show_margins and np.isfinite(bw):
         ax2.axvline(bw, color="g", ls="--", alpha=0.6, lw=1.5, label=f"BW ω_bw={bw:.3g}")
     
     # --- Phase Margin ---
