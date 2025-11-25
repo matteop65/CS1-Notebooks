@@ -148,9 +148,16 @@ def apply_delay(sys):
         return sys, ("exact", tau, None, None), None
 
 def bode_np(sys, w):
+    # mag, phase, omega = ctl.freqresp(sys, w)
+    # mag = np.squeeze(mag)
+    # phase = np.squeeze(phase) * 180/np.pi
+    # return mag, phase
+
+    # def bode_np(sys, w):
     mag, phase, omega = ctl.freqresp(sys, w)
     mag = np.squeeze(mag)
     phase = np.squeeze(phase) * 180/np.pi
+    phase = np.unwrap(phase * np.pi/180) * 180/np.pi  # Unwrap if needed
     return mag, phase
 
 def compute_margins_and_bw(L, w):
