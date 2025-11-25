@@ -154,11 +154,11 @@ def bode_np(sys, w):
     # return mag, phase
 
     # def bode_np(sys, w):
-    mag, phase, omega = ctl.freqresp(sys, w)
+    mag, phase, _ = ctl.frequency_response(sys, w)
     mag = np.squeeze(mag)
-    phase = np.squeeze(phase) * 180/np.pi
-    phase = np.unwrap(phase * np.pi/180) * 180/np.pi  # Unwrap if needed
-    return mag, phase
+    phase = np.squeeze(phase)
+    phase_unwrapped = np.unwrap(phase) * 180 / np.pi
+    return mag, phase_unwrapped
 
 def compute_margins_and_bw(L, w):
     try:
